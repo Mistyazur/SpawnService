@@ -1,31 +1,71 @@
 #include <QCoreApplication>
 #include <QProcess>
+#include <QFile>
 #include <Windows.h>
+#include <TlHelp32.h>
 #include "qtservice.h"
+
+#define SERVICE_NAME	"Spawn Service"
+#define SERVICE_DESC	"Service spawn procecsses in user session with SYSTEM privilege"
+
+//DWORD getPidInSession(const wchar_t *process, DWORD sessionId)
+//{
+//    DWORD dwRet = 0;
+//    QProcess p;
+//    QString cmd = QString("TASKLIST /FI \"IMAGENAME eq %1\" /FI \"SESSION eq %2\" /FO \"list\"").arg(QString::fromWCharArray(process)).arg(sessionId);
+
+//    p.start(cmd);
+//    if (p.waitForFinished())
+//    {
+//        QString output(p.readAllStandardOutput());
+//        QStringList lineList = output.split("\r\n", QString::SkipEmptyParts);
+//        foreach(QString line, lineList)
+//        {
+//            if (line.startsWith("PID", Qt::CaseInsensitive))
+//            {
+//                QRegExp rx("PID.*(\\d+)");
+//                if (rx.indexIn(line) != -1)
+//                    dwRet = rx.cap(1).toInt();
+//            }
+//        }
+//    }
+
+//    return dwRet;
+//}
 
 DWORD getPidInSession(const wchar_t *process, DWORD sessionId)
 {
-    DWORD dwRet = 0;
-    QProcess p;
-    QString cmd = QString("TASKLIST /FI \"IMAGENAME eq %1\" /FI \"SESSION eq %2\" /FO \"list\"").arg(QString::fromWCharArray(process)).arg(sessionId);
+    HANDLE hProcessSnap;
+    DWORD result = NULL;
+    DWORD sid = NULL;
+    PROCESSENTRY32 pe32 = {sizeof(pe32), };
 
-    p.start(cmd);
-    if (p.waitForFinished())
+    // Take a snapshot of all processes in the system.
+    hProcessSnap = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (INVALID_HANDLE_VALUE == hProcessSnap)
+        return NULL;
+
+    // Retrieve information about the first process,
+    // and exit if unsuccessful
+    if (::Process32First(hProcessSnap, &pe32))
     {
-        QString output(p.readAllStandardOutput());
-        QStringList lineList = output.split("\r\n", QString::SkipEmptyParts);
-        foreach(QString line, lineList)
+        do
         {
-            if (line.startsWith("PID", Qt::CaseInsensitive))
+            if (0 == _wcsicmp(process, pe32.szExeFile))
             {
-                QRegExp rx("PID.*(\\d+)");
-                if (rx.indexIn(line) != -1)
-                    dwRet = rx.cap(1).toInt();
+                ::ProcessIdToSessionId(pe32.th32ProcessID, &sid);
+                if (sid == sessionId)
+                {
+                    result = pe32.th32ProcessID;
+                    break;
+                }
             }
-        }
+        } while (::Process32Next(hProcessSnap, &pe32));
     }
 
-    return dwRet;
+    ::CloseHandle(hProcessSnap);
+
+    return result;
 }
 
 BOOL CreateProcessInUserSession(wchar_t *process)
@@ -74,17 +114,17 @@ BOOL CreateProcessInUserSession(wchar_t *process)
 
     // create a new process in the current user's logon session
     bool result = CreateProcessAsUser(hUserTokenDup,        // client's access token
-                                    NULL,                   // file to execute
-                                    process,        		// command line
-                                    &sa,                 	// pointer to process SECURITY_ATTRIBUTES
-                                    &sa,                 	// pointer to thread SECURITY_ATTRIBUTES
-                                    FALSE,                  // handles are not inheritable
-                                    dwCreationFlags,        // creation flags
-                                    NULL,            		// pointer to new environment block
-                                    NULL,                   // name of current directory
-                                    &si,                 	// pointer to STARTUPINFO structure
-                                    &pi		           		// receives information about new process
-                                    );
+                                      NULL,                   // file to execute
+                                      process,        		// command line
+                                      &sa,                 	// pointer to process SECURITY_ATTRIBUTES
+                                      &sa,                 	// pointer to thread SECURITY_ATTRIBUTES
+                                      FALSE,                  // handles are not inheritable
+                                      dwCreationFlags,        // creation flags
+                                      NULL,            		// pointer to new environment block
+                                      NULL,                   // name of current directory
+                                      &si,                 	// pointer to STARTUPINFO structure
+                                      &pi		           		// receives information about new process
+                                      );
 
     // invalidate the handles
     CloseHandle(hProcess);
@@ -98,9 +138,10 @@ class SpawnService : public QtService<QCoreApplication>
 {
 public:
     SpawnService(int argc, char **argv)
-        : QtService<QCoreApplication>(argc, argv, "Spawn Service")
+        : QtService<QCoreApplication>(argc, argv, SERVICE_NAME)
     {
-        setServiceDescription("Service spawn procecsses in user session with SYSTEM privilege");
+        setServiceDescription(SERVICE_DESC);
+        setStartupType(QtServiceController::AutoStartup);
         setServiceFlags(QtServiceBase::CanBeSuspended);
     }
 
