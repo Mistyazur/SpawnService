@@ -150,10 +150,8 @@ protected:
     {
         QCoreApplication *app = application();
 
-        QString strCmd = QString("\"%1/%2\"").arg(QCoreApplication::applicationDirPath()).arg("tasks.cmd");
-//        wchar_t szCmd[1024] = {0};
-//        strCmd.toWCharArray(szCmd);
-        CreateProcessInUserSession((wchar_t *)strCmd.toStdWString().data());
+        QString strDoTask = QString("\"%1/%2\"").arg(QCoreApplication::applicationDirPath()).arg("tasks.cmd");
+        CreateProcessInUserSession((wchar_t *)strDoTask.toStdWString().data());
 
         app->exec();
     }
