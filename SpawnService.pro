@@ -16,3 +16,7 @@ HEADERS +=
 LIBS += -lUser32 -lAdvapi32
 
 include(QtService/QtService.pri)
+
+win32 {
+QMAKE_LFLAGS += /MANIFESTUAC:\"level=\'requireAdministrator\' uiAccess=\'false\'\"
+}
