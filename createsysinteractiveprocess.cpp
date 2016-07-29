@@ -3,7 +3,7 @@
 #include <Wtsapi32.h>
 #include <UserEnv.h>
 
-//static DWORD getPidInSession(const wchar_t *process, DWORD sessionId)
+//static DWORD GetPidInSession(const wchar_t *process, DWORD sessionId)
 //{
 //    DWORD dwRet = 0;
 //    QProcess p;
@@ -28,7 +28,7 @@
 //    return dwRet;
 //}
 
-static DWORD getPidInSession(const wchar_t *process, DWORD sessionId)
+static DWORD GetSessionProcessId(const wchar_t *process, DWORD sessionId)
 {
     HANDLE hProcessSnap;
     DWORD result = NULL;
@@ -66,7 +66,13 @@ static DWORD getPidInSession(const wchar_t *process, DWORD sessionId)
 BOOL CreateSysInteractiveProcess(wchar_t *process)
 {
     BOOL bResult = FALSE;
-
+    SECURITY_ATTRIBUTES sa = {0};
+    HANDLE hActiveUserToken = NULL;
+    HANDLE hActiveUserTokenDup = NULL;
+    LPVOID lpUserEnvBlock = NULL;
+    HANDLE hProcess = NULL;
+    HANDLE hSysInteractiveToken = NULL;
+    HANDLE hSysInteractiveTokenDup = NULL;
     STARTUPINFO si = {};
     PROCESS_INFORMATION pi = {};
 
@@ -76,48 +82,53 @@ BOOL CreateSysInteractiveProcess(wchar_t *process)
     // of the existing token. However, in C# structures are value types and therefore
     // cannot be assigned the null value.
 
-    SECURITY_ATTRIBUTES sa = {0};
     sa.nLength = sizeof(SECURITY_ATTRIBUTES);
 
     // Get active user token.
 
     DWORD dwActiveUserSessionId = WTSGetActiveConsoleSessionId();
-    HANDLE hActiveUserToken = NULL;
-    if (!WTSQueryUserToken(dwActiveUserSessionId, &hActiveUserToken))
-        goto CLEANUP;
+    while (!WTSQueryUserToken(dwActiveUserSessionId, &hActiveUserToken))
+    {
+        int error = ::GetLastError();
+        if (error == ERROR_NO_TOKEN)
+            ::Sleep(1000);
+        else
+            goto CLEANUP;
+    }
 
     // Copy active user token.
 
-    HANDLE hActiveUserTokenDup = NULL;
     if (!DuplicateTokenEx(hActiveUserToken, MAXIMUM_ALLOWED, &sa, SecurityIdentification, TokenPrimary, &hActiveUserTokenDup))
         goto CLEANUP;
 
     // Create active user environment.
 
-    LPVOID lpUserEnvBlock = NULL;
     if (!CreateEnvironmentBlock(&lpUserEnvBlock, hActiveUserTokenDup, false))
         goto CLEANUP;
 
     // Get pid of the system process which has interactive access(in user session).
 
-    DWORD dwWinLogonPid = getPidInSession(TEXT("winlogon.exe"), dwActiveUserSessionId);
+    DWORD dwWinLogonPid;
+    do
+    {
+        dwWinLogonPid = GetSessionProcessId(TEXT("winlogon.exe"), dwActiveUserSessionId);
+        ::Sleep(1000);
+    } while (dwWinLogonPid == NULL);
 
     // Obtain a handle to the winlogon process.
 
-    HANDLE hProcess = ::OpenProcess(MAXIMUM_ALLOWED, FALSE, dwWinLogonPid);
+    hProcess = ::OpenProcess(MAXIMUM_ALLOWED, FALSE, dwWinLogonPid);
     if (hProcess == NULL)
         goto CLEANUP;
 
     // Obtain a handle to the access token of the winlogon process.
 
-    HANDLE hSysInteractiveToken = NULL;
     if (!::OpenProcessToken(hProcess, TOKEN_DUPLICATE, &hSysInteractiveToken))
         goto CLEANUP;
 
     // Copy the access token of the winlogon process.
     // The newly created token will be a primary token.
 
-    HANDLE hSysInteractiveTokenDup = NULL;
     if (!DuplicateTokenEx(hSysInteractiveToken, MAXIMUM_ALLOWED, &sa, SecurityIdentification, TokenPrimary, &hSysInteractiveTokenDup))
         goto CLEANUP;
 
