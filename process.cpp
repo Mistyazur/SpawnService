@@ -3,7 +3,7 @@
 #include <Wtsapi32.h>
 #include <UserEnv.h>
 
-static DWORD GetPidInSession(const wchar_t *process, DWORD sessionId)
+static DWORD GetPidInSession(LPCWSTR process, DWORD sessionId)
 {
     HANDLE hProcessSnap;
     DWORD result = NULL;
@@ -39,7 +39,7 @@ static DWORD GetPidInSession(const wchar_t *process, DWORD sessionId)
 
     return result;
 }
-BOOL RunAsInteractiveSystem(wchar_t *process)
+BOOL RunAsInteractiveSystem(LPCWSTR lpszProcess)
 {
     BOOL bResult = FALSE;
     SECURITY_ATTRIBUTES sa = {0};
@@ -122,9 +122,11 @@ BOOL RunAsInteractiveSystem(wchar_t *process)
 
     // Create a new process in the current user's logon session.
 
+    WCHAR szCmd[MAX_PATH];
+    wcscpy_s(szCmd, lpszProcess);
     bResult = CreateProcessAsUser(hSysInteractiveTokenDup,
                                       NULL,
-                                      process,
+                                      szCmd,
                                       &sa,
                                       &sa,
                                       FALSE,

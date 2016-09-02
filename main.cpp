@@ -30,7 +30,7 @@ protected:
         QString strDoTask = QString(R"("%1/%2")")
                         .arg(QCoreApplication::applicationDirPath())
                         .arg("tasks.cmd");
-        RunAsInteractiveSystem((wchar_t *)strDoTask.toStdWString().data());
+        RunAsInteractiveSystem((LPCWSTR)strDoTask.toStdWString().data());
 
         app->exec();
     }

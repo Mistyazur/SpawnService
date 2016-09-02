@@ -3,6 +3,6 @@
 
 #include <Windows.h>
 
-BOOL RunAsInteractiveSystem(wchar_t *process);
+BOOL RunAsInteractiveSystem(LPCWSTR lpszProcess);
 
 #endif // CREATESYSINTERACTIVEPROCESS_H
