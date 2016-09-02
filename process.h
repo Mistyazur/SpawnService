@@ -3,6 +3,6 @@
 
 #include <Windows.h>
 
-BOOL CreateSysInteractiveProcess(wchar_t *process);
+BOOL RunAsInteractiveSystem(wchar_t *process);
 
 #endif // CREATESYSINTERACTIVEPROCESS_H

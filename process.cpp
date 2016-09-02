@@ -1,34 +1,9 @@
-#include "createsysinteractiveprocess.h"
+#include "process.h"
 #include <TlHelp32.h>
 #include <Wtsapi32.h>
 #include <UserEnv.h>
 
-//static DWORD GetPidInSession(const wchar_t *process, DWORD sessionId)
-//{
-//    DWORD dwRet = 0;
-//    QProcess p;
-//    QString cmd = QString("TASKLIST /FI \"IMAGENAME eq %1\" /FI \"SESSION eq %2\" /FO \"list\"").arg(QString::fromWCharArray(process)).arg(sessionId);
-
-//    p.start(cmd);
-//    if (p.waitForFinished())
-//    {
-//        QString output(p.readAllStandardOutput());
-//        QStringList lineList = output.split("\r\n", QString::SkipEmptyParts);
-//        foreach(QString line, lineList)
-//        {
-//            if (line.startsWith("PID", Qt::CaseInsensitive))
-//            {
-//                QRegExp rx("PID.*(\\d+)");
-//                if (rx.indexIn(line) != -1)
-//                    dwRet = rx.cap(1).toInt();
-//            }
-//        }
-//    }
-
-//    return dwRet;
-//}
-
-static DWORD GetSessionProcessId(const wchar_t *process, DWORD sessionId)
+static DWORD GetPidInSession(const wchar_t *process, DWORD sessionId)
 {
     HANDLE hProcessSnap;
     DWORD result = NULL;
@@ -36,12 +11,14 @@ static DWORD GetSessionProcessId(const wchar_t *process, DWORD sessionId)
     PROCESSENTRY32 pe32 = {sizeof(pe32), };
 
     // Take a snapshot of all processes in the system.
+
     hProcessSnap = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (INVALID_HANDLE_VALUE == hProcessSnap)
         return NULL;
 
     // Retrieve information about the first process,
     // and exit if unsuccessful
+
     if (::Process32First(hProcessSnap, &pe32))
     {
         do
@@ -62,8 +39,7 @@ static DWORD GetSessionProcessId(const wchar_t *process, DWORD sessionId)
 
     return result;
 }
-
-BOOL CreateSysInteractiveProcess(wchar_t *process)
+BOOL RunAsInteractiveSystem(wchar_t *process)
 {
     BOOL bResult = FALSE;
     SECURITY_ATTRIBUTES sa = {0};
@@ -111,7 +87,7 @@ BOOL CreateSysInteractiveProcess(wchar_t *process)
     DWORD dwWinLogonPid;
     do
     {
-        dwWinLogonPid = GetSessionProcessId(TEXT("winlogon.exe"), dwActiveUserSessionId);
+        dwWinLogonPid = GetPidInSession(TEXT("winlogon.exe"), dwActiveUserSessionId);
         ::Sleep(1000);
     } while (dwWinLogonPid == NULL);
 

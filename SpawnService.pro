@@ -10,10 +10,10 @@ CONFIG -= app_bundle
 TEMPLATE = app
 
 SOURCES += main.cpp \
-    createsysinteractiveprocess.cpp
+    process.cpp
 
 HEADERS += \
-    createsysinteractiveprocess.h
+    process.h
 
 LIBS += -lUser32 -lAdvapi32 -lUserenv -lWtsapi32
 

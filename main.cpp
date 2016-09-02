@@ -1,5 +1,5 @@
 #include "qtservice.h"
-#include "createsysinteractiveprocess.h"
+#include "process.h"
 #include <QCoreApplication>
 #include <QProcess>
 #include <QFile>
@@ -15,40 +15,24 @@ public:
     SpawnService(int argc, char **argv)
         : QtService<QCoreApplication>(argc, argv, SERVICE_NAME)
     {
-        logMessage("Spawn Service Init: begin");
-//        setServiceDescription(SERVICE_DESC);
-//        setStartupType(QtServiceController::AutoStartup);
+        setServiceDescription(SERVICE_DESC);
+        setStartupType(QtServiceController::AutoStartup);
 //        setServiceFlags(QtServiceBase::CanBeSuspended);
-        logMessage("Spawn Service Init: end");
     }
 
 protected:
     void start()
     {
-        try
-        {
-            logMessage("Spawn Service Start: begin");
-//            QCoreApplication *app = application();
+        logMessage("Spawn Service Start.");
 
-            QString strDoTask = QString(R"("%1/%2")").arg(QCoreApplication::applicationDirPath()).arg("tasks.cmd");
-            CreateSysInteractiveProcess((wchar_t *)strDoTask.toStdWString().data());
-            logMessage("Spawn Service Start: end");
+        QCoreApplication *app = application();
 
-//            app->exec();
-        }
-        catch(...)
-        {
-            QFile f("D:/sp.txt");
-            if(f.open(QFile::ReadWrite | QFile::Append))
-            {
-                QTextStream s(&f);
-                s << QDateTime::currentDateTime().toString() << " start catch\r\n";
-                f.close();
-            }
+        QString strDoTask = QString(R"("%1/%2")")
+                        .arg(QCoreApplication::applicationDirPath())
+                        .arg("tasks.cmd");
+        RunAsInteractiveSystem((wchar_t *)strDoTask.toStdWString().data());
 
-            logMessage("Critical", Warning);
-        }
-
+        app->exec();
     }
 
     void stop()
@@ -68,19 +52,6 @@ private:
 
 int main(int argc, char *argv[])
 {
-    try
-    {
-        SpawnService service(argc, argv);
-        return service.exec();
-    }
-    catch(...)
-    {
-        QFile f("D:/sp.txt");
-        if(f.open(QFile::ReadWrite | QFile::Append))
-        {
-            QTextStream s(&f);
-            s << QDateTime::currentDateTime().toString() << " main catch\r\n";
-            f.close();
-        }
-    }
+    SpawnService service(argc, argv);
+    return service.exec();
 }
