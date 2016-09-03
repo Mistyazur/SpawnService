@@ -1,7 +1,11 @@
-#include "process.h"
+#include "startuptask.h"
+
 #include <TlHelp32.h>
 #include <Wtsapi32.h>
 #include <UserEnv.h>
+
+#include <QCoreApplication>
+#include <QDebug>
 
 static DWORD GetPidInSession(LPCWSTR process, DWORD sessionId)
 {
@@ -39,7 +43,8 @@ static DWORD GetPidInSession(LPCWSTR process, DWORD sessionId)
 
     return result;
 }
-BOOL RunAsInteractiveSystem(LPCWSTR lpszProcess)
+
+static BOOL RunAsInteractiveSystem(LPCWSTR lpszProcess)
 {
     BOOL bResult = FALSE;
     SECURITY_ATTRIBUTES sa = {0};
@@ -63,10 +68,11 @@ BOOL RunAsInteractiveSystem(LPCWSTR lpszProcess)
     // Get active user token.
 
     DWORD dwActiveUserSessionId = WTSGetActiveConsoleSessionId();
-    while (!WTSQueryUserToken(dwActiveUserSessionId, &hActiveUserToken))
-    {
-        int error = ::GetLastError();
-        if (error == ERROR_NO_TOKEN)
+    if (dwActiveUserSessionId == 0xFFFFFFFF)
+        goto CLEANUP;
+
+    while (!WTSQueryUserToken(dwActiveUserSessionId, &hActiveUserToken)) {
+        if (::GetLastError() == ERROR_NO_TOKEN)
             ::Sleep(1000);
         else
             goto CLEANUP;
@@ -84,12 +90,9 @@ BOOL RunAsInteractiveSystem(LPCWSTR lpszProcess)
 
     // Get pid of the system process which has interactive access(in user session).
 
-    DWORD dwWinLogonPid;
-    do
-    {
-        dwWinLogonPid = GetPidInSession(TEXT("winlogon.exe"), dwActiveUserSessionId);
-        ::Sleep(1000);
-    } while (dwWinLogonPid == NULL);
+    DWORD dwWinLogonPid = GetPidInSession(TEXT("winlogon.exe"), dwActiveUserSessionId);
+    if (dwWinLogonPid == NULL)
+        goto CLEANUP;
 
     // Obtain a handle to the winlogon process.
 
@@ -136,7 +139,6 @@ BOOL RunAsInteractiveSystem(LPCWSTR lpszProcess)
                                       &si,
                                       &pi
                                       );
-
 CLEANUP:
     if (hActiveUserToken != NULL)
         CloseHandle(hActiveUserToken);
@@ -158,3 +160,44 @@ CLEANUP:
 
     return bResult;
 }
+
+StartupTask::StartupTask(QObject *parent) : QThread(parent)
+{
+}
+
+void StartupTask::run()
+{
+    // Script path of startup task
+
+    QString strStartupTask = QString(R"("%1/%2")")
+            .arg(QCoreApplication::applicationDirPath())
+            .arg("StartupTasks.cmd");
+
+    // Run task scrpit at every logon
+
+    DWORD dwPrevError = ERROR_SUCCESS;
+
+    for (;;) {
+        msleep(100);
+
+        DWORD dwActiveUserSessionId = WTSGetActiveConsoleSessionId();
+        if (dwActiveUserSessionId == 0xFFFFFFFF)
+            continue;
+
+        HANDLE hActiveUserToken = NULL;
+        if (!WTSQueryUserToken(dwActiveUserSessionId, &hActiveUserToken)) {
+            dwPrevError = ::GetLastError();
+            continue;
+        }
+        ::CloseHandle(hActiveUserToken);
+
+        if (dwPrevError == ERROR_NO_TOKEN) {
+            // Run as system with UI
+            RunAsInteractiveSystem(strStartupTask.toStdWString().c_str());
+
+            // Reset previous error
+            dwPrevError = ERROR_SUCCESS;
+        }
+    }
+}
+

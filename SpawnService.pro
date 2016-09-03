@@ -1,4 +1,4 @@
-QT += core
+QT += core network
 QT -= gui
 
 CONFIG += c++11
@@ -10,15 +10,15 @@ CONFIG -= app_bundle
 TEMPLATE = app
 
 SOURCES += main.cpp \
-    process.cpp
+    startuptask.cpp
 
 HEADERS += \
-    process.h
+    startuptask.h
 
 LIBS += -lUser32 -lAdvapi32 -lUserenv -lWtsapi32
 
 include(QtService/QtService.pri)
 
 win32 {
-QMAKE_LFLAGS += /MANIFESTUAC:\"level=\'requireAdministrator\' uiAccess=\'false\'\"
+#QMAKE_LFLAGS += /MANIFESTUAC:\"level=\'requireAdministrator\' uiAccess=\'false\'\"
 }

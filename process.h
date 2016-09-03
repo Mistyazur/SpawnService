@@ -1,8 +1,0 @@
-#ifndef CREATESYSINTERACTIVEPROCESS_H
-#define CREATESYSINTERACTIVEPROCESS_H
-
-#include <Windows.h>
-
-BOOL RunAsInteractiveSystem(LPCWSTR lpszProcess);
-
-#endif // CREATESYSINTERACTIVEPROCESS_H
