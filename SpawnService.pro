@@ -10,10 +10,12 @@ CONFIG -= app_bundle
 TEMPLATE = app
 
 SOURCES += main.cpp \
-    startuptask.cpp
+    startuptask.cpp \
+    process.cpp
 
 HEADERS += \
-    startuptask.h
+    startuptask.h \
+    process.h
 
 LIBS += -lUser32 -lAdvapi32 -lUserenv -lWtsapi32
 

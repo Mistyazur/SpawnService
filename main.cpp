@@ -1,4 +1,5 @@
 #include "qtservice.h"
+#include "process.h"
 #include "startuptask.h"
 #include <QCoreApplication>
 #include <QProcess>
